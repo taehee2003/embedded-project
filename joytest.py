@@ -23,3 +23,4 @@ while time.time() < end:
         print("PRESSED:", pressed)
         time.sleep(0.2)
     time.sleep(0.01)
+P

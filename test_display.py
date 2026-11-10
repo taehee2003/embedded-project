@@ -14,7 +14,7 @@ backlight.value = True
 
 spi = board.SPI()
 disp = st7789.ST7789(
-    spi, width=240, height=240, rotation=0, y_offset=80,
+    spi, width=240, height=240, rotation=180, y_offset=80,
     cs=cs_pin, dc=dc_pin, rst=rst_pin, baudrate=24000000,
 )
 
