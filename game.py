@@ -1,6 +1,6 @@
 import time, random
 import board, digitalio
-from PIL import Image, ImageDraw
+from PIL import Image, ImageDraw, ImageOps
 from adafruit_rgb_display import st7789
 
 W = H = 240
@@ -37,7 +37,8 @@ def any_button():
 
 #플레이어
 player_image = Image.open("assets/knight_small.png").convert("RGBA")
-player_image.thumbnail((20, 20))  
+player_image.thumbnail((35, 35))
+player_image_right = ImageOps.mirror(player_image) 
 player_width = player_image.width // 2
 player_height = player_image.height // 2
 
@@ -55,42 +56,59 @@ On_ground = True
 prev = time.monotonic()
 acc = 0.0
 STEP = 1 / 60
+stage = 1
+facing = 1
 
 # 문
 door = Image.open("assets/door.png").convert("RGBA")
-door.thumbnail((25, 20))
+door.thumbnail((30, 30))
 
 # 용암
 lava = Image.open("assets/lava.png").convert("RGBA")
 lava = lava.resize((240, 15))
 
-# 기둥 사이즈
-PILLARS = [
-    (210, 200, W),
+monster = Image.open("assets/monster.png").convert("RGBA")
+monster.thumbnail((30, 30))
+
+# 스테이지 별 배경
+STAGE_PILLARS = [
+    [(210, 200, W),
     (170, 165, 185),
     (130, 130, 145),
     (90, 95, 105),
     (50, 60, 65),
-    (0, 25, 30),
+    (0, 30, 30)],
+
+    [(0,160, W)],
 ]
-stand = 0
-Pillar_on = [True, True, True, True, True, True]
-timer = 0.0
-trap = False
+STAGE_START = [(225, 200 - player_height), (W - player_width, 160 -player_height)]
+STAGE_DOOR = [(2, 3), (5, 160 - 30)]
 
 def game_stage(n):
-    global stage, player, Velocity, On_ground, stand
+    global stage, PILLARS, player, door_x, door_y, Velocity, On_ground, stand, timer, trap
+    stage = n
+    PILLARS = STAGE_PILLARS[n-1]
+    door_x, door_y = STAGE_DOOR[n-1] 
+    player_x, player_y = STAGE_START[n-1]
+    player = [player_x, player_y]
+    Velocity = 0.0
+    On_ground = True
+    stand = 0
+    timer = 0.0
+    trap = False
+
+
 
 # 리셋 값
 def reset_game():
-    global player, Velocity, On_ground, stand, Pillar_on, timer, trap
-    player = [225, 200 - player_height]
+    global player, Velocity, On_ground, stand, Pillar_on, timer, trap, stage
     Velocity = 0.0
     On_ground = True
     stand = 0
     Pillar_on = [True, True, True, True, True, True]
     timer = 0.0
     trap = False
+    game_stage(1)
 
 while True:
     now = time.monotonic()
@@ -137,6 +155,10 @@ while True:
             dx += speed
         player[0] += dx
         player[0] = max(player_width, min(W - player_width, player[0]))
+        if dx > 0:
+            facing = -1
+        elif dx < 0:
+            facing = 1
 
         # 기둥 옆면 충돌 판정
         feet = player[1] + player_height
@@ -181,7 +203,11 @@ while True:
                     stand = i
                     break
             i += 1
-        
+
+        if player[0] + player_width > door_x and player[0] - player_width < door_x:
+            game_stage(2)
+ 
+        # 떨어졌을 때
         if after_feet >= 230:
             reset_game()
             mode = "dead"
@@ -202,15 +228,28 @@ while True:
         draw.text((60, 175), "PRESS ANY BUTTON", fill=(255, 255, 255), font_size = 13)
 
     else:
-        draw.rectangle((0, 0, W, H), fill=(80, 80, 80))
+        draw.rectangle((0, 0, W, H), fill=(100, 100, 100))
         j = 0
         for x1, y1, x2 in PILLARS:
             if Pillar_on[j]:
                 draw.rectangle((x1, y1, x2, H), fill=(150, 150, 150))
             j += 1
+        img.paste(door, (door_x, door_y), door)
+        if stage == 1:
             img.paste(lava, (0, 240 - 15), lava)
-            img.paste(door, (2, 5), door)
-        img.paste(player_image, (int(player[0] - player_width), int(player[1] - player_height)), player_image)
+        if stage == 2:
+            img.paste(monster, (50, 160 - 30), monster)
+      
+        
+
+        # 기사
+        if facing < 0:
+            knight = player_image_right
+        
+        else:
+            knight = player_image
+
+        img.paste(knight, (int(player[0] - player_width), int(player[1] - player_height)), knight)
     
     disp.image(img)
 
